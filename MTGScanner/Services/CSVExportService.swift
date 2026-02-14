@@ -27,11 +27,9 @@ class CSVExportService {
             escaped.removeFirst()
         }
         
-        // Escape double quotes and wrap in quotes if needed
-        if escaped.contains(",") || escaped.contains("\"") || escaped.contains("\n") {
-            escaped = escaped.replacingOccurrences(of: "\"", with: "\"\"")
-            escaped = "\"\(escaped)\""
-        }
+        // Always escape double quotes and wrap string fields in quotes for safety
+        escaped = escaped.replacingOccurrences(of: "\"", with: "\"\"")
+        escaped = "\"\(escaped)\""
         
         return escaped
     }
