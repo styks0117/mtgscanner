@@ -9,8 +9,7 @@ class CSVExportService {
         for card in cards {
             let sku = card.tcgplayerId ?? ""
             let finish = card.isFoil ? "Foil" : "Normal"
-            let row = "\"
-            + "\(card.name)\",\"\(card.setName)\",\"\(card.setCode)\",\(sku),\(card.quantity),\(card.condition.rawValue),\(finish)\n"
+            let row = "\"\(card.name)\",\"\(card.setName)\",\"\(card.setCode)\",\(sku),\(card.quantity),\(card.condition.rawValue),\(finish)\n"
             csvString.append(row)
         }
         
