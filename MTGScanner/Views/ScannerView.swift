@@ -211,8 +211,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
     
     private func captureImageForOCR() {
         guard let recognitionService = recognitionService,
-              !recognitionService.isProcessing,
-              let connection = previewLayer?.connection else { return }
+              !recognitionService.isProcessing else { return }
         
         // Get current frame from preview layer
         let image = captureCurrentFrame()
@@ -232,15 +231,11 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
     private func captureCurrentFrame() -> UIImage? {
         guard let previewLayer = previewLayer else { return nil }
         
-        UIGraphicsBeginImageContextWithOptions(previewLayer.bounds.size, false, 0)
-        guard let context = UIGraphicsGetCurrentContext() else {
-            UIGraphicsEndImageContext()
-            return nil
+        // Use UIGraphicsImageRenderer (modern API introduced in iOS 10)
+        let renderer = UIGraphicsImageRenderer(size: previewLayer.bounds.size)
+        let image = renderer.image { context in
+            previewLayer.render(in: context.cgContext)
         }
-        
-        previewLayer.render(in: context)
-        let image = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
         
         return image
     }

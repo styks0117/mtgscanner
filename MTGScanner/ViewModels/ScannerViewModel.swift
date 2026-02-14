@@ -14,10 +14,13 @@ class ScannerViewModel: ObservableObject {
     private var lastAddedCardName: String?
     private var lastAddedTime: Date = .distantPast
     
+    // Debounce interval to prevent duplicate additions of the same card
+    private let debounceInterval: TimeInterval = 3.0
+    
     func lookupAndAddCard(named cardName: String) {
         // Prevent duplicate rapid additions of the same card
         let now = Date()
-        if cardName == lastAddedCardName && now.timeIntervalSince(lastAddedTime) < 3.0 {
+        if cardName == lastAddedCardName && now.timeIntervalSince(lastAddedTime) < debounceInterval {
             return
         }
         
