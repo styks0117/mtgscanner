@@ -9,11 +9,31 @@ class CSVExportService {
         for card in cards {
             let sku = card.tcgplayerId ?? ""
             let finish = card.isFoil ? "Foil" : "Normal"
-            let row = "\"\(card.name)\",\"\(card.setName)\",\"\(card.setCode)\",\(sku),\(card.quantity),\(card.condition.rawValue),\(finish)\n"
+            // Escape CSV values to prevent formula injection
+            let row = "\(escapeCSV(card.name)),\(escapeCSV(card.setName)),\(escapeCSV(card.setCode)),\(sku),\(card.quantity),\(card.condition.rawValue),\(finish)\n"
             csvString.append(row)
         }
         
         return csvString
+    }
+    
+    private func escapeCSV(_ value: String) -> String {
+        // Prevent CSV injection by escaping special characters
+        var escaped = value
+        
+        // Remove leading characters that could trigger formula injection
+        let dangerousChars: [Character] = ["=", "+", "-", "@", "\t", "\r"]
+        while let first = escaped.first, dangerousChars.contains(first) {
+            escaped.removeFirst()
+        }
+        
+        // Escape double quotes and wrap in quotes if needed
+        if escaped.contains(",") || escaped.contains("\"") || escaped.contains("\n") {
+            escaped = escaped.replacingOccurrences(of: "\"", with: "\"\"")
+            escaped = "\"\(escaped)\""
+        }
+        
+        return escaped
     }
     
     func exportToFile(cards: [ScannedCard], completion: @escaping (URL?) -> Void) {
