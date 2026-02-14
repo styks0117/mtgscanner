@@ -142,6 +142,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
     var recognitionService: CardRecognitionService?
     var viewModel: ScannerViewModel?
     private var captureTimer: Timer?
+    private let captureInterval: TimeInterval = 2.0 // Interval for periodic OCR capture
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -202,9 +203,9 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
     }
     
     private func startPeriodicCapture() {
-        // Capture frame every 2 seconds for OCR
+        // Capture frame periodically for OCR
         captureTimer?.invalidate()
-        captureTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+        captureTimer = Timer.scheduledTimer(withTimeInterval: captureInterval, repeats: true) { [weak self] _ in
             self?.captureImageForOCR()
         }
     }

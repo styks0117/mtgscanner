@@ -7,10 +7,10 @@ class CSVExportService {
         var csvString = "Card Name,Set Name,Set Code,SKU,Quantity,Condition,Finish\n"
         
         for card in cards {
-            let sku = card.tcgplayerId ?? ""
-            let finish = card.isFoil ? "Foil" : "Normal"
+            let sku = escapeCSV(card.tcgplayerId ?? "")
+            let finish = escapeCSV(card.isFoil ? "Foil" : "Normal")
             // Escape CSV values to prevent formula injection
-            let row = "\(escapeCSV(card.name)),\(escapeCSV(card.setName)),\(escapeCSV(card.setCode)),\(sku),\(card.quantity),\(card.condition.rawValue),\(finish)\n"
+            let row = "\(escapeCSV(card.name)),\(escapeCSV(card.setName)),\(escapeCSV(card.setCode)),\(sku),\(card.quantity),\(escapeCSV(card.condition.rawValue)),\(finish)\n"
             csvString.append(row)
         }
         

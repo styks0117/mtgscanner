@@ -41,8 +41,13 @@ class ScryfallService {
     }
     
     private func addToCache(key: String, card: ScryfallCard) {
+        // Check if key already exists and remove it to maintain LRU order
+        if let existingIndex = cacheKeys.firstIndex(of: key) {
+            cacheKeys.remove(at: existingIndex)
+        }
+        
         // Implement LRU cache with size limit
-        if cardCache.count >= maxCacheSize {
+        if cardCache.count >= maxCacheSize && !cardCache.keys.contains(key) {
             // Evict oldest entry
             if let oldestKey = cacheKeys.first {
                 cardCache.removeValue(forKey: oldestKey)
