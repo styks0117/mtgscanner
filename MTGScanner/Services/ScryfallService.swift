@@ -3,10 +3,13 @@ import Foundation
 class ScryfallService {
     private let baseURL = "https://api.scryfall.com"
     private var cardCache: [String: ScryfallCard] = [:]
+    private let maxCacheSize = 500 // Limit cache to prevent unbounded growth
+    private var cacheKeys: [String] = [] // Track insertion order for LRU eviction
     
     func searchCard(named name: String) async throws -> ScryfallCard? {
         // Check cache first
-        if let cached = cardCache[name.lowercased()] {
+        let cacheKey = name.lowercased()
+        if let cached = cardCache[cacheKey] {
             return cached
         }
         
@@ -17,13 +20,17 @@ class ScryfallService {
             throw URLError(.badURL)
         }
         
-        let (data, _) = try await URLSession.shared.data(from: url)
+        // Configure URLSession with timeout
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 10.0 // 10 second timeout
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
         
         do {
             let response = try JSONDecoder().decode(ScryfallResponse.self, from: data)
             if let firstCard = response.data.first {
-                // Cache the result
-                cardCache[name.lowercased()] = firstCard
+                // Add to cache with LRU eviction
+                addToCache(key: cacheKey, card: firstCard)
                 return firstCard
             }
         } catch {
@@ -33,7 +40,27 @@ class ScryfallService {
         return nil
     }
     
+    private func addToCache(key: String, card: ScryfallCard) {
+        // Check if key already exists and remove it to maintain LRU order
+        if let existingIndex = cacheKeys.firstIndex(of: key) {
+            cacheKeys.remove(at: existingIndex)
+        }
+        
+        // Implement LRU cache with size limit
+        if cardCache.count >= maxCacheSize && !cardCache.keys.contains(key) {
+            // Evict oldest entry
+            if let oldestKey = cacheKeys.first {
+                cardCache.removeValue(forKey: oldestKey)
+                cacheKeys.removeFirst()
+            }
+        }
+        
+        cardCache[key] = card
+        cacheKeys.append(key)
+    }
+    
     func clearCache() {
         cardCache.removeAll()
+        cacheKeys.removeAll()
     }
 }
