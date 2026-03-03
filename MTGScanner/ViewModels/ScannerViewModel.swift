@@ -29,15 +29,25 @@ class ScannerViewModel: ObservableObject {
     }
     
     private func saveCards() {
-        if let encoded = try? JSONEncoder().encode(scannedCards) {
+        do {
+            let encoded = try JSONEncoder().encode(scannedCards)
             UserDefaults.standard.set(encoded, forKey: cardsStorageKey)
+        } catch {
+            print("Failed to save cards: \(error.localizedDescription)")
+            // Note: We don't show UI error here as save happens automatically in background
+            // and shouldn't interrupt user experience
         }
     }
     
     private func loadCards() {
-        if let data = UserDefaults.standard.data(forKey: cardsStorageKey),
-           let decoded = try? JSONDecoder().decode([ScannedCard].self, from: data) {
+        guard let data = UserDefaults.standard.data(forKey: cardsStorageKey) else { return }
+        
+        do {
+            let decoded = try JSONDecoder().decode([ScannedCard].self, from: data)
             scannedCards = decoded
+        } catch {
+            print("Failed to load cards: \(error.localizedDescription)")
+            // If load fails, start with empty collection rather than crashing
         }
     }
     

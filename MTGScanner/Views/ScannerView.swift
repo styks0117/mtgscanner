@@ -145,6 +145,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate, AVC
     private let captureInterval: TimeInterval = 2.0 // Interval for periodic OCR capture
     private var lastCapturedFrame: UIImage?
     private let videoOutputQueue = DispatchQueue(label: "videoOutputQueue")
+    private let frameAccessQueue = DispatchQueue(label: "frameAccessQueue")
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -230,13 +231,24 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate, AVC
         
         guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return }
         
-        lastCapturedFrame = UIImage(cgImage: cgImage)
+        let image = UIImage(cgImage: cgImage)
+        
+        // Thread-safe frame storage
+        frameAccessQueue.sync {
+            lastCapturedFrame = image
+        }
     }
     
     private func captureImageForOCR() {
         guard let recognitionService = recognitionService,
-              !recognitionService.isProcessing,
-              let image = lastCapturedFrame else { return }
+              !recognitionService.isProcessing else { return }
+        
+        // Thread-safe frame retrieval
+        let image: UIImage? = frameAccessQueue.sync {
+            return lastCapturedFrame
+        }
+        
+        guard let image = image else { return }
         
         recognitionService.recognizeText(from: image) { [weak self] cardName in
             guard let self = self,

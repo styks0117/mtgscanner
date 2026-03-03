@@ -17,7 +17,7 @@ An iOS app for scanning and cataloging Magic: The Gathering cards using OCR tech
 
 - iOS 17.0+
 - Xcode 15.0+
-- Swift 5.0+
+- Swift 5.9+
 - Physical iOS device (camera required - simulator won't work)
 
 ## Setup and Deployment to Your iPhone
