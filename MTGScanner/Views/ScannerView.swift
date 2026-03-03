@@ -136,13 +136,15 @@ struct CameraView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: CameraViewController, context: Context) {}
 }
 
-class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
+class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate, AVCaptureVideoDataOutputSampleBufferDelegate {
     var captureSession: AVCaptureSession?
     var previewLayer: AVCaptureVideoPreviewLayer?
     var recognitionService: CardRecognitionService?
     var viewModel: ScannerViewModel?
     private var captureTimer: Timer?
     private let captureInterval: TimeInterval = 2.0 // Interval for periodic OCR capture
+    private var lastCapturedFrame: UIImage?
+    private let videoOutputQueue = DispatchQueue(label: "videoOutputQueue")
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -181,6 +183,15 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
                 captureSession.addInput(videoInput)
             }
             
+            // Add video data output for frame capture
+            let videoOutput = AVCaptureVideoDataOutput()
+            videoOutput.setSampleBufferDelegate(self, queue: videoOutputQueue)
+            videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+            
+            if captureSession.canAddOutput(videoOutput) {
+                captureSession.addOutput(videoOutput)
+            }
+            
             previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
             previewLayer?.videoGravity = .resizeAspectFill
             previewLayer?.frame = view.bounds
@@ -210,35 +221,35 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
         }
     }
     
+    // AVCaptureVideoDataOutputSampleBufferDelegate
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let context = CIContext()
+        
+        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return }
+        
+        lastCapturedFrame = UIImage(cgImage: cgImage)
+    }
+    
     private func captureImageForOCR() {
         guard let recognitionService = recognitionService,
-              !recognitionService.isProcessing else { return }
+              !recognitionService.isProcessing,
+              let image = lastCapturedFrame else { return }
         
-        // Get current frame from preview layer
-        let image = captureCurrentFrame()
-        
-        if let image = image {
-            recognitionService.recognizeText(from: image) { [weak self] cardName in
-                guard let self = self,
-                      let cardName = cardName,
-                      let viewModel = self.viewModel else { return }
-                
-                // Look up the card and add to collection
-                viewModel.lookupAndAddCard(named: cardName)
-            }
+        recognitionService.recognizeText(from: image) { [weak self] cardName in
+            guard let self = self,
+                  let cardName = cardName,
+                  let viewModel = self.viewModel else { return }
+            
+            // Look up the card and add to collection
+            viewModel.lookupAndAddCard(named: cardName)
         }
     }
     
-    private func captureCurrentFrame() -> UIImage? {
-        guard let previewLayer = previewLayer else { return nil }
-        
-        // Use UIGraphicsImageRenderer (modern API introduced in iOS 10)
-        let renderer = UIGraphicsImageRenderer(size: previewLayer.bounds.size)
-        let image = renderer.image { context in
-            previewLayer.render(in: context.cgContext)
-        }
-        
-        return image
+    deinit {
+        captureTimer?.invalidate()
     }
 }
 

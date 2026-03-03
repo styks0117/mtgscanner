@@ -3,7 +3,11 @@ import SwiftUI
 
 @MainActor
 class ScannerViewModel: ObservableObject {
-    @Published var scannedCards: [ScannedCard] = []
+    @Published var scannedCards: [ScannedCard] = [] {
+        didSet {
+            saveCards()
+        }
+    }
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showShareSheet = false
@@ -16,6 +20,26 @@ class ScannerViewModel: ObservableObject {
     
     // Debounce interval to prevent duplicate additions of the same card
     private let debounceInterval: TimeInterval = 3.0
+    
+    // UserDefaults key for persistence
+    private let cardsStorageKey = "scannedCards"
+    
+    init() {
+        loadCards()
+    }
+    
+    private func saveCards() {
+        if let encoded = try? JSONEncoder().encode(scannedCards) {
+            UserDefaults.standard.set(encoded, forKey: cardsStorageKey)
+        }
+    }
+    
+    private func loadCards() {
+        if let data = UserDefaults.standard.data(forKey: cardsStorageKey),
+           let decoded = try? JSONDecoder().decode([ScannedCard].self, from: data) {
+            scannedCards = decoded
+        }
+    }
     
     func lookupAndAddCard(named cardName: String) {
         // Prevent duplicate rapid additions of the same card
