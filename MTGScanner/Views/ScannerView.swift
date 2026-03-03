@@ -233,7 +233,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate, AVC
         
         let image = UIImage(cgImage: cgImage)
         
-        // Thread-safe frame storage with async write to avoid blocking video thread
+        // Thread-safe frame storage - async write with barrier to avoid blocking video thread
         frameAccessQueue.async(flags: .barrier) { [weak self] in
             self?.lastCapturedFrame = image
         }
@@ -243,7 +243,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate, AVC
         guard let recognitionService = recognitionService,
               !recognitionService.isProcessing else { return }
         
-        // Thread-safe frame retrieval
+        // Thread-safe frame retrieval - sync read is safe with concurrent queue
         frameAccessQueue.sync {
             guard let image = lastCapturedFrame else { return }
             
