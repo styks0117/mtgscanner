@@ -145,7 +145,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate, AVC
     private let captureInterval: TimeInterval = 2.0 // Interval for periodic OCR capture
     private var lastCapturedFrame: UIImage?
     private let videoOutputQueue = DispatchQueue(label: "videoOutputQueue")
-    private let frameAccessQueue = DispatchQueue(label: "frameAccessQueue")
+    private let frameAccessQueue = DispatchQueue(label: "frameAccessQueue", attributes: .concurrent)
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -233,9 +233,9 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate, AVC
         
         let image = UIImage(cgImage: cgImage)
         
-        // Thread-safe frame storage
-        frameAccessQueue.sync {
-            lastCapturedFrame = image
+        // Thread-safe frame storage with async write to avoid blocking video thread
+        frameAccessQueue.async(flags: .barrier) { [weak self] in
+            self?.lastCapturedFrame = image
         }
     }
     
@@ -244,19 +244,17 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate, AVC
               !recognitionService.isProcessing else { return }
         
         // Thread-safe frame retrieval
-        let image: UIImage? = frameAccessQueue.sync {
-            return lastCapturedFrame
-        }
-        
-        guard let image = image else { return }
-        
-        recognitionService.recognizeText(from: image) { [weak self] cardName in
-            guard let self = self,
-                  let cardName = cardName,
-                  let viewModel = self.viewModel else { return }
+        frameAccessQueue.sync {
+            guard let image = lastCapturedFrame else { return }
             
-            // Look up the card and add to collection
-            viewModel.lookupAndAddCard(named: cardName)
+            recognitionService.recognizeText(from: image) { [weak self] cardName in
+                guard let self = self,
+                      let cardName = cardName,
+                      let viewModel = self.viewModel else { return }
+                
+                // Look up the card and add to collection
+                viewModel.lookupAndAddCard(named: cardName)
+            }
         }
     }
     
